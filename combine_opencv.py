@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 import time
 import random
+import math
+
 
 def mathc_img(image,Target,value):
     img_rgb = cv2.imread(image)
@@ -22,21 +24,64 @@ def mathc_img(image,Target,value):
         return 0
   
 
+def colorDiff(p1, p2):
+    r0 = abs(int(p1[0]) - int(p2[0]))
+    r1 = abs(int(p1[1]) - int(p2[1]))
+    r2 = abs(int(p1[2]) - int(p2[2]))
+    res = r0+r1+r2
+    return res
 
-def get_center(canny_img ):
+
+def get_center(canny_img , rgb_img = 0):
     # 利用边缘检测的结果寻找物块的上沿和下沿
     # 进而计算物块的中心点
-    y_top = np.nonzero([max(row) for row in canny_img[850:]])[0][0] + 850
+    y_top = np.nonzero([max(row) for row in canny_img[500:]])[0][0] + 500
     x_top = int(np.mean(np.nonzero(canny_img[y_top])))
 
+    base = rgb_img[ y_top+1 , x_top]
+
+    # print 'base color' , base , y_top , x_top
+    # print 'top canny像素',canny_img[x_top , y_top]
+    # print 'top rgb像素',base
+
     H, W = canny_img.shape
-    print H,W
-    y_bottom = y_top + 80
-    for row in range(y_bottom, H):
-        if canny_img[row, x_top] != 0:
+    # print H,W
+    y_bottom = y_top + 280
+    DIFF_THERESHOLD = 9
+    white_center_top = 0
+    white_center_bottom = 0
+
+    for row in range( y_top , y_bottom):
+                #如果有的话，找中心白点
+        pixel = rgb_img[ row ,x_top ]
+        pixel_prv = rgb_img[ row-2 ,x_top ]
+        pixel_next = rgb_img[ row+2 ,x_top ]
+
+        if colorDiff( pixel , [245 , 245 , 245 ]) == 0 and colorDiff( pixel_prv , [245 , 245 , 245 ]) != 0:
+            if white_center_top == 0:
+                white_center_top = row
+                y_top = row
+                continue
+        if colorDiff( pixel , [245 , 245 , 245 ]) == 0 and colorDiff( pixel_next , [245 , 245 , 245 ]) != 0:
+                white_center_bottom = row
+                y_bottom = row
+                print '----------------------------->跳到中心<-----------------------------'
+            
+                x_center, y_center = x_top, (y_top + y_bottom) // 2
+                return canny_img, x_center, y_center
+
+    for row in range( y_bottom , y_top, -1 ):
+        pixel = rgb_img[ row ,x_top ]
+                #找相同颜色，从下向上找，如果从上往下，带来诸多问题
+        diff = colorDiff( pixel , base)
+        if diff < DIFF_THERESHOLD and \
+            (canny_img[row+2, x_top] != 0 or canny_img[row+1, x_top] != 0 or \
+            canny_img[row , x_top-1] != 0 or canny_img[row, x_top+1] != 0 ) \
+            and row >y_top+11 :
+            print '----------------------------->匹配色<-----------------------------'
             y_bottom = row
             break
-    print y_top, y_bottom
+
     x_center, y_center = x_top, (y_top + y_bottom) // 2
     return canny_img, x_center, y_center
 
@@ -44,13 +89,16 @@ def get_center(canny_img ):
 def find_jumper_and_board(imgPath,\
     Target='/home/eacaen/桌面/科赛/my_wechart_jump_game/temp_player.png',\
     value=0.7,\
-     show = False):
+     show = False,\
+     time=0):
     """
     寻找关键坐标
     """ 
+
+#模板匹配，找到小人
     max_loc1_x ,max_loc1_y , w,  h = mathc_img(imgPath,Target,value)
 
-    x_jumper , y_jumper = max_loc1_x + int(w/2) , max_loc1_y + 190
+    x_jumper , y_jumper = max_loc1_x + int(w/2)+2 , max_loc1_y + 185
 
     img_rgb = cv2.imread(imgPath)
 
@@ -59,12 +107,12 @@ def find_jumper_and_board(imgPath,\
     canny_img = cv2.Canny(img_gauss, 1, 10)
     H, W = canny_img.shape
 
-    # 消去小跳棋轮廓对边缘检测结果的干扰
+    # 消去小人轮廓对边缘检测结果的干扰
     for k in range(max_loc1_y - 200, max_loc1_y + 200):
-        for b in range(max_loc1_x - 10, max_loc1_x + 100):
+        for b in range(max_loc1_x - 20, max_loc1_x + 100):
             canny_img[k][b] = 0
 
-    canny_img, x_center, y_center = get_center(canny_img)
+    canny_img, x_center, y_center = get_center(canny_img , img_rgb)
 
     if show:
         cv2.circle(canny_img, (x_center, y_center), 10, 255, -1)
@@ -72,7 +120,7 @@ def find_jumper_and_board(imgPath,\
 
         cv2.namedWindow("guass",cv2.WINDOW_NORMAL)  
         cv2.imshow('guass',canny_img)
-        cv2.waitKey(0)
+        cv2.waitKey(time)
         cv2.destroyAllWindows()
 
     return x_jumper , y_jumper , x_center, y_center
@@ -82,15 +130,20 @@ if __name__ == '__main__':
     imgPath = random.choice(list(os.path.join(imgDir, name) for name in os.listdir(imgDir)))
     print imgPath
 
-    imgPath = imgDir + '/201.png'
+    imgPath = imgDir + '/127.png'
     find_jumper_and_board(imgPath, show =1)
+
+    # imgPath = imgDir + '/449.png'
+    # find_jumper_and_board(imgPath, show =1)
 
     # for name in os.listdir(imgDir):
     #     imgPath =  os.path.join(imgDir, name)
     #     print imgPath
     #     find_jumper_and_board(imgPath, show = 0)
 
-    # for i in range(200,250):
+    # for i in range(550,650):
     #     imgPath =  '/home/eacaen/桌面/科赛/img/'+str(i)+'.png'
     #     print imgPath
     #     find_jumper_and_board(imgPath, show = 1) 
+    #     import time
+    #     time.sleep(2)
