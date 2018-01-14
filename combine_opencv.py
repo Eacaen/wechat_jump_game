@@ -23,6 +23,51 @@ def mathc_img(image,Target,value):
     else:
         return 0
   
+def get_jumper(canny_img , rgb_img = 0):
+    # 利用边缘检测的结果寻找物块的上沿和下沿
+    # 进而计算物块的中心点
+    H, W = canny_img.shape
+    jumper_left_x = []
+    jumper_left_y = []
+
+    jumper_right_x = []
+    jumper_right_y = []
+
+    search_area_top = int(H/3)
+    search_area_bottom = int(2*H/3)
+
+    search_area_left  = int(0.1*W)
+    search_area_right = int(0.9*W)
+
+
+    base = [102, 60 , 54 ] #BGR 在最下面的几个像素
+    DIFF_THERESHOLD = 2
+    
+    for row in range( search_area_left , search_area_right):
+        for col in range( search_area_top , search_area_bottom ):
+            pixel = rgb_img[ col , row ]
+            pixel_prv = canny_img[ col +1, row  ]
+            pixel_prv2 = canny_img[ col +2, row  ]
+
+            if colorDiff( pixel , base) < DIFF_THERESHOLD and ( pixel_prv != 0 or pixel_prv2 != 0):
+                jumper_left_x.append(row)
+                jumper_left_y.append(col)
+
+#不一定要来回照两遍
+    # for row in range( search_area_right , search_area_left , -1 ):
+    #     for col in range( search_area_top , search_area_bottom ):
+    #         pixel = rgb_img[ col , row ]
+    #         pixel_prv = canny_img[ col +1, row  ]
+    #         pixel_prv2 = canny_img[ col +2, row  ]
+
+    #         if colorDiff( pixel , base) < DIFF_THERESHOLD and ( pixel_prv != 0 or pixel_prv2 != 0):
+    #             jumper_right_x.append(row)
+    #             jumper_right_y.append(col)
+
+    x_center = (sum(jumper_left_x)+sum(jumper_right_x))// (len(jumper_left_x)+len(jumper_right_x))
+    y_center = -18 + (sum(jumper_left_y)+sum(jumper_right_y))// (len(jumper_left_y)+len(jumper_right_y))
+
+    return canny_img, x_center, y_center
 
 def colorDiff(p1, p2):
     r0 = abs(int(p1[0]) - int(p2[0]))
@@ -96,9 +141,9 @@ def find_jumper_and_board(imgPath,\
     """ 
 
 #模板匹配，找到小人
-    max_loc1_x ,max_loc1_y , w,  h = mathc_img(imgPath,Target,value)
+    # max_loc1_x ,max_loc1_y , w,  h = mathc_img(imgPath,Target,value)
 
-    x_jumper , y_jumper = max_loc1_x + int(w/2)+2 , max_loc1_y + 185
+    # x_jumper , y_jumper = max_loc1_x + int(w/2)+2 , max_loc1_y + 185
 
     img_rgb = cv2.imread(imgPath)
 
@@ -107,9 +152,12 @@ def find_jumper_and_board(imgPath,\
     canny_img = cv2.Canny(img_gauss, 1, 10)
     H, W = canny_img.shape
 
+#不使用模板，直接找
+    canny_img, x_jumper , y_jumper = get_jumper(canny_img , img_rgb)
+
     # 消去小人轮廓对边缘检测结果的干扰
-    for k in range(max_loc1_y - 200, max_loc1_y + 200):
-        for b in range(max_loc1_x - 20, max_loc1_x + 100):
+    for k in range(y_jumper - 300, y_jumper + 50):
+        for b in range(x_jumper - 60, x_jumper + 60):
             canny_img[k][b] = 0
 
     canny_img, x_center, y_center = get_center(canny_img , img_rgb)
@@ -130,7 +178,7 @@ if __name__ == '__main__':
     imgPath = random.choice(list(os.path.join(imgDir, name) for name in os.listdir(imgDir)))
     print imgPath
 
-    imgPath = imgDir + '/127.png'
+    imgPath = imgDir + '/98.png'
     find_jumper_and_board(imgPath, show =1)
 
     # imgPath = imgDir + '/449.png'
