@@ -145,7 +145,7 @@ def main():
         time.sleep(0.5)
         screenshot.pull_screenshot()
         
-        imgPath='../wechat_jump_game-master/autojump.png'
+        imgPath='./autojump.png'
 
         im = Image.open(imgPath)
 
