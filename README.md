@@ -1,12 +1,11 @@
 # 教你用 Python 来玩微信跳一跳
 
 ## update
- > 使用了 ＠wangshub 的框架和 ＠moneyDboat 使用opencv找点的思路，保留了原始的代码。
+ > 使用了 ＠wangshub 的框架和 ＠moneyDboat 使用opencv找点的思路，保留了原始的代码。[＠wangshub](https://github.com/wangshub/wechat_jump_game)
 
 ## run
 python my_wechat_jump.py
 
-[＠wangshub](https://github.com/wangshub/wechat_jump_game)
 
 手机机型:小米Mix2
 
